@@ -21,7 +21,7 @@
 // you try to trace through "use strict" call chains. (#13335)
 // Support: Firefox 18+
 //"use strict";
-//在严格模式下不要去使用
+//严格模式不要去使用 不兼容老版本 .NET会有问题
 
     var
     // A central reference to the root jQuery(document)
@@ -42,7 +42,7 @@
         docElem = document.documentElement,
         //方便压缩 i=e.location
 
-    //防冲突
+    //防冲突,如果别的地方也要用到$符号
     // Map over jQuery in case of overwrite
         _jQuery = window.jQuery,
 
@@ -52,13 +52,16 @@
 
     // [[Class]] -> type pairs
         class2type = {},
+    //最后形式 {'[Object String]':'string'...}在$.type()方法中可以做类型判断
 
     // List of deleted data cache ids, so we can reuse them
+    //跟缓存数据有关，2.0从数组变成面向对象的写法了，这个数组已经用不到了
         core_deletedIds = [],
 
         core_version = "2.0.3",
 
     // Save a reference to some core methods
+    //保存一些常用的方法的引用，方便使用，对于压缩有利
         core_concat = core_deletedIds.concat,
         core_push = core_deletedIds.push,
         core_slice = core_deletedIds.slice,
@@ -76,6 +79,34 @@
             return new jQuery.fn.init( selector, context, rootjQuery );
         },
 
+    //jQuery.fn=jQuery.prototype 所以jQuery.fn就是jQuery对象的原型
+    //jQuery.fn.init.prototype=jQuery.fn(jQuery.prototype) 所以jQuery.fn.init和jQuery是一个原型，所以用jQuery.fn.init创造出来的对象，共享jQuery对象的方法，所以才可以有下面的这种写法
+    //jQuery().css();
+
+    /*一般面向对象的写法
+    function Aaa(){
+
+    }
+
+    Aaa.prototype.init=function(){};
+    Aaa.prototype.css=function(){};
+
+    var a1=new Aaa();
+    a1.init();*/
+
+    /*jQuery的写法
+    function jQeury(){
+        return new jQuery.prototype.init();
+    }
+
+    jQuery.prototype.init=function(){};
+    jQuery.prototype.css=function(){};
+
+    jQuery().css();*/
+
+    //在我的理解下其实就是一种单例，构造+初始化的写法，可以省去创建一个新的实例然后初始化的普通写法
+
+
     // Used for matching numbers
         core_pnum = /[+-]?(?:\d*\.|)\d+(?:[eE][+-]?\d+|)/.source,
 
@@ -85,7 +116,8 @@
     // A simple way to check for HTML strings
     // Prioritize #id over <tag> to avoid XSS via location.hash (#9521)
     // Strict HTML recognition (#11290: must start with <)
-    //防止注入，只能识别标签和id <p>|#id
+    //防止XSS通过location.hash注入，只能识别标签和id <p>|#id
+    //之前#<div>的hash值回去创建一个div的标签
         rquickExpr = /^(?:\s*(<[\w\W]+>)[^>]*|#([\w-]*))$/,
 
     // Match a standalone tag
@@ -1205,8 +1237,8 @@
         /**
          * Create key-value caches of limited size
          * @returns {Function(string, Object)} Returns the Object data after storing it on itself with
-         *	property name the (space-suffixed) string and (if the cache is larger than Expr.cacheLength)
-         *	deleting the oldest entry
+         *  property name the (space-suffixed) string and (if the cache is larger than Expr.cacheLength)
+         *  deleting the oldest entry
          */
         function createCache() {
             var keys = [];
@@ -1385,7 +1417,7 @@
             }
 
             /* Attributes
-	---------------------------------------------------------------------- */
+    ---------------------------------------------------------------------- */
 
             // Support: IE<8
             // Verify that getAttribute really returns attributes and not properties (excepting IE8 booleans)
@@ -1395,7 +1427,7 @@
             });
 
             /* getElement(s)By*
-	---------------------------------------------------------------------- */
+    ---------------------------------------------------------------------- */
 
             // Check if getElementsByTagName("*") returns only elements
             support.getElementsByTagName = assert(function( div ) {
@@ -1488,7 +1520,7 @@
             };
 
             /* QSA/matchesSelector
-	---------------------------------------------------------------------- */
+    ---------------------------------------------------------------------- */
 
             // QSA and matchesSelector support
 
@@ -1575,7 +1607,7 @@
             rbuggyMatches = rbuggyMatches.length && new RegExp( rbuggyMatches.join("|") );
 
             /* Contains
-	---------------------------------------------------------------------- */
+    ---------------------------------------------------------------------- */
 
             // Element contains another
             // Purposefully does not implement inclusive descendent
@@ -1602,7 +1634,7 @@
                 };
 
             /* Sorting
-	---------------------------------------------------------------------- */
+    ---------------------------------------------------------------------- */
 
             // Document order sorting
             sortOrder = docElem.compareDocumentPosition ?
@@ -1863,15 +1895,15 @@
 
                 "CHILD": function( match ) {
                     /* matches from matchExpr["CHILD"]
-				1 type (only|nth|...)
-				2 what (child|of-type)
-				3 argument (even|odd|\d*|\d*n([+-]\d+)?|...)
-				4 xn-component of xn+y argument ([+-]?\d*n|)
-				5 sign of xn-component
-				6 x of xn-component
-				7 sign of y-component
-				8 y of y-component
-			*/
+                1 type (only|nth|...)
+                2 what (child|of-type)
+                3 argument (even|odd|\d*|\d*n([+-]\d+)?|...)
+                4 xn-component of xn+y argument ([+-]?\d*n|)
+                5 sign of xn-component
+                6 x of xn-component
+                7 sign of y-component
+                8 y of y-component
+            */
                     match[1] = match[1].toLowerCase();
 
                     if ( match[1].slice( 0, 3 ) === "nth" ) {
@@ -2909,23 +2941,23 @@
     /*
  * Create a callback list using the following parameters:
  *
- *	options: an optional list of space-separated options that will change how
- *			the callback list behaves or a more traditional option object
+ *  options: an optional list of space-separated options that will change how
+ *          the callback list behaves or a more traditional option object
  *
  * By default a callback list will act like an event callback list and can be
  * "fired" multiple times.
  *
  * Possible options:
  *
- *	once:			will ensure the callback list can only be fired once (like a Deferred)
+ *  once:           will ensure the callback list can only be fired once (like a Deferred)
  *
- *	memory:			will keep track of previous values and will call any callback added
- *					after the list has been fired right away with the latest "memorized"
- *					values (like a Deferred)
+ *  memory:         will keep track of previous values and will call any callback added
+ *                  after the list has been fired right away with the latest "memorized"
+ *                  values (like a Deferred)
  *
- *	unique:			will ensure a callback can only be added once (no duplicate in the list)
+ *  unique:         will ensure a callback can only be added once (no duplicate in the list)
  *
- *	stopOnFalse:	interrupt callings when a callback returns false
+ *  stopOnFalse:    interrupt callings when a callback returns false
  *
  */
     //回调对象：对函数的统一管理
@@ -3358,15 +3390,15 @@
     })( {} );
 
     /*
-	Implementation Summary
+    Implementation Summary
 
-	1. Enforce API surface and semantic compatibility with 1.9.x branch
-	2. Improve the module's maintainability by reducing the storage
-		paths to a single mechanism.
-	3. Use the same single mechanism to support "private" and "user" data.
-	4. _Never_ expose "private" data to user code (TODO: Drop _data, _removeData)
-	5. Avoid exposing implementation details on user objects (eg. expando properties)
-	6. Provide a clear path for implementation upgrade to WeakMap in 2014
+    1. Enforce API surface and semantic compatibility with 1.9.x branch
+    2. Improve the module's maintainability by reducing the storage
+        paths to a single mechanism.
+    3. Use the same single mechanism to support "private" and "user" data.
+    4. _Never_ expose "private" data to user code (TODO: Drop _data, _removeData)
+    5. Avoid exposing implementation details on user objects (eg. expando properties)
+    6. Provide a clear path for implementation upgrade to WeakMap in 2014
 */
     //数据缓存
     var data_user, data_priv,
@@ -6954,21 +6986,21 @@
         _load = jQuery.fn.load,
 
     /* Prefilters
-	 * 1) They are useful to introduce custom dataTypes (see ajax/jsonp.js for an example)
-	 * 2) These are called:
-	 *    - BEFORE asking for a transport
-	 *    - AFTER param serialization (s.data is a string if s.processData is true)
-	 * 3) key is the dataType
-	 * 4) the catchall symbol "*" can be used
-	 * 5) execution will start with transport dataType and THEN continue down to "*" if needed
-	 */
+     * 1) They are useful to introduce custom dataTypes (see ajax/jsonp.js for an example)
+     * 2) These are called:
+     *    - BEFORE asking for a transport
+     *    - AFTER param serialization (s.data is a string if s.processData is true)
+     * 3) key is the dataType
+     * 4) the catchall symbol "*" can be used
+     * 5) execution will start with transport dataType and THEN continue down to "*" if needed
+     */
         prefilters = {},
 
     /* Transports bindings
-	 * 1) key is the dataType
-	 * 2) the catchall symbol "*" can be used
-	 * 3) selection will start with transport dataType and THEN go to "*" if needed
-	 */
+     * 1) key is the dataType
+     * 2) the catchall symbol "*" can be used
+     * 3) selection will start with transport dataType and THEN go to "*" if needed
+     */
         transports = {},
 
     // Avoid comment-prolog char sequence (#10098); must appease lint and evade compression
@@ -7147,16 +7179,16 @@
             async: true,
             contentType: "application/x-www-form-urlencoded; charset=UTF-8",
             /*
-		timeout: 0,
-		data: null,
-		dataType: null,
-		username: null,
-		password: null,
-		cache: null,
-		throws: false,
-		traditional: false,
-		headers: {},
-		*/
+        timeout: 0,
+        data: null,
+        dataType: null,
+        username: null,
+        password: null,
+        cache: null,
+        throws: false,
+        traditional: false,
+        headers: {},
+        */
 
             accepts: {
                 "*": allTypes,
