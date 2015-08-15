@@ -42,7 +42,7 @@
         docElem = document.documentElement,
         //方便压缩 i=e.location
 
-    //防冲突,如果别的地方也要用到$符号
+    //防冲突,如果别的库也要用到$符号
     // Map over jQuery in case of overwrite
         _jQuery = window.jQuery,
 
@@ -131,7 +131,7 @@
         rdashAlpha = /-([\da-z])/gi,//-l->L
 
     // Used by jQuery.camelCase as callback to replace()
-    //转驼峰的回调函数
+    //转驼峰的回调函数，这里可以看一下string.replace()的地方
         fcamelCase = function( all, letter ) {
             return letter.toUpperCase();
         },
@@ -146,6 +146,18 @@
 
     //给JQ添加一些属性和方法
     jQuery.fn = jQuery.prototype = {
+
+        // jQuery对象会把$("li")所选择到的东西变成这样的对象，存起来：
+        // jQuery={
+        //     0:li,
+        //     1:li,
+        //     2:li,
+        //     length:3,
+        //     ...
+        // }
+
+        // 所以$("li")[1]就是第二个li的dom对象
+
         // The current version of jQuery being used
         jquery: core_version,//版本 $().jquery
 
@@ -166,11 +178,20 @@
         // Aaa.prototype={
         //     name:"hello",
         //     age:30
-        // };//直接用json形式是覆盖，constructor变成Object()
+        // };//直接用字面量是覆盖，constructor变成Object(),需要自己修正指向
 
         //初始化和参数管理
         // $("li","ul") ul上下文的li
         //$("<li>") 创建一个li标签
+        //**初始化就是要将selector和context转换成设定格式的jq对象
+        // jQuery={
+        //     0:li,
+        //     1:li,
+        //     2:li,
+        //     length:3,
+        //     context:...,
+        //     ...
+        // }
         init: function( selector, context, rootjQuery ) {
             var match, elem;
 
@@ -181,24 +202,37 @@
             }
 
             // Handle HTML strings
+            //$('<li>')创建一个元素
             if ( typeof selector === "string" ) {
                 //正常的<xx>的标签
                 if ( selector.charAt(0) === "<" && selector.charAt( selector.length - 1 ) === ">" && selector.length >= 3 ) {
                     // Assume that strings that start and end with <> are HTML and skip the regex check
                     match = [ null, selector, null ];
+                    // 这里是创建标签的地方
+                    // match=[null,'<li>',null]
 
                 } else {
                     //获取id class
+                    // rquickExpr = /^(?:\s*(<[\w\W]+>)[^>]*|#([\w-]*))$/    # ?:表示外层的不属于子项
+                    //$('#div1') match=["#div1",null,"div1"],$('<li>hello')这些能匹配到 match=["<li>hello","<li>",null]
+                    //$(.box) $(div) $(#div1 div.box) match=null;
                     match = rquickExpr.exec( selector );
+
                 }
 
-                // Match html or make sure no context is specified for #id
+                // Match html or make sure no context is specified for #id 创建标签或者是id进这里
                 if ( match && (match[1] || !context) ) {
 
-                    // HANDLE: $(html) -> $(array)
+                    // HANDLE: $(html) -> $(array)创建标签
                     if ( match[1] ) {
+                        //上下文就是指在哪个下面创建标签
+                        //$('li',document/contentWindow.document)只能document，但是可以是iframe的document
+                        //$('p',$('#iframe').prop("contentWindow").document)
+                        //这里都是找到原生的context
                         context = context instanceof jQuery ? context[0] : context;
 
+                        //parseHTML把字符串转换为节点数组
+                        //参数2：哪个document 参数3：默认false，字符串当中script是不能有的，只有设置true才能填入script<\/script>
                         var aaa = jQuery.parseHTML(
                             match[1],
                             context && context.nodeType ? context.ownerDocument || context : document,
@@ -206,30 +240,33 @@
                         )
 
                         // scripts is true for back-compat
+                        //merge方法用于合并两个数组，还可以合并json和数组，但是json必须是jq的有下标数字的数组这样的格式
                         jQuery.merge( this,  aaa);
 
                         // HANDLE: $(html, props)
+                        // $('<li>',{title:'hi',html:'abcd'}) 但是这里只能够单标签，第二个必须是json（isPlainObject）
                         if ( rsingleTag.test( match[1] ) && jQuery.isPlainObject( context ) ) {
                             for ( match in context ) {
                                 // Properties of context are called as methods if possible
-                                if ( jQuery.isFunction( this[ match ] ) ) {
+                                if ( jQuery.isFunction( this[ match ] ) ) { //比如有html()方法，这里就直接调用这个
                                     this[ match ]( context[ match ] );
 
                                     // ...and otherwise set as attributes
                                 } else {
-                                    this.attr( match, context[ match ] );
+                                    this.attr( match, context[ match ] );//没有方法，就加在属性里面
                                 }
                             }
                         }
 
                         return this;
 
-                        // HANDLE: $(#id)
+                        // HANDLE: $(#id) 这里是选取id
                     } else {
                         elem = document.getElementById( match[2] );
 
                         // Check parentNode to catch when Blackberry 4.6 returns
                         // nodes that are no longer in the document #6963
+                        //parentNode的判断主要为了解决黑莓中元素不存在，但是能找到的问题
                         if ( elem && elem.parentNode ) {
                             // Inject the element directly into the jQuery object
                             this.length = 1;
@@ -242,32 +279,39 @@
                     }
 
                     // HANDLE: $(expr, $(...))
-                } else if ( !context || context.jquery ) {
+                } else if ( !context || context.jquery ) {//如果没有上下文，或者上下文是jquery对象
+                    //rootjQuery=$(document)
+                    //find使用sizzle来处理的，所以复杂的都是用find来解决的
                     return ( context || rootjQuery ).find( selector );
 
                     // HANDLE: $(expr, context)
                     // (which is just equivalent to: $(context).find(expr)
                 } else {
+                    //如果有上下文但不是jquery对象，先构造下上下文然后再找
+                    //比如$("li",document)
                     return this.constructor( context ).find( selector );
                 }
 
-                // HANDLE: $(DOMElement)
+                // HANDLE: $(DOMElement)对于dom元素处理，$(this) $(document)
             } else if ( selector.nodeType ) {
                 this.context = this[0] = selector;
                 this.length = 1;
                 return this;
 
-                // HANDLE: $(function)
+                // HANDLE: $(function)对于函数的处理 $(function(){})=$(document).ready(fundtion(){})
                 // Shortcut for document ready
             } else if ( jQuery.isFunction( selector ) ) {
                 return rootjQuery.ready( selector );
             }
 
+            //$($("#div1"))这种情况，重新对应一下
             if ( selector.selector !== undefined ) {
                 this.selector = selector.selector;
                 this.context = selector.context;
             }
 
+            //makeArray的作用是把类数组转成真正的数组，比如用getElemtentsByTag获取到的不是真正的数组
+            //和merge的原理差不多，只有内部符合jquery对象格式json才能用，这里就是转成正常的jquery对象的形式
             return jQuery.makeArray( selector, this );
         },
 
@@ -278,11 +322,14 @@
         length: 0,
 
         toArray: function() {
-            return core_slice.call( this );
+            //core_slice = core_deletedIds.slice,数组slice方法
+            //把jq对象转为[div,div,div]原生数组
+            return core_slice.call( this );//在json环境下执行
         },
 
         // Get the Nth element in the matched element set OR
         // Get the whole matched element set as a clean array
+        //转原生集合，不传参数的时候就相当于toArray
         get: function( num ) {
             return num == null ?
 
@@ -298,6 +345,9 @@
         pushStack: function( elems ) {
 
             // Build a new jQuery matched element set
+            //$(div).pushStack(span).css({color:red})这样span会变，因为在stack的最上层
+            //调.end()可以到stack的下一层，也就是div然后再调用其他方法
+            //end就是使用prevObject来实现的
             var ret = jQuery.merge( this.constructor(), elems );
 
             // Add the old object onto the stack (as a reference)
@@ -311,18 +361,25 @@
         // Execute a callback for every element in the matched set.
         // (You can seed the arguments with an array of args, but this is
         // only used internally.)
+        //
         each: function( callback, args ) {
+            //最后使用工具的each来实现的，这个就是既是实例方法，又是工具方法
+            //工具方法构建的是最底层
+            //实例方法很多都是调用工具方法的
             return jQuery.each( this, callback, args );
         },
 
         ready: function( fn ) {
             // Add the callback
+            //dom加载的接口
             jQuery.ready.promise().done( fn );
 
             return this;
         },
 
         slice: function() {
+            //和数组的截取是差不多的
+            //但是加了一部入栈，在原先的上面加了一个截取的东西，所以使用了slice了之后，就是对切出来的对象进行操作，调用end就变成原先的jq对象
             return this.pushStack( core_slice.apply( this, arguments ) );
         },
 
