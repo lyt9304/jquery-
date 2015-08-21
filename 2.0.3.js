@@ -417,6 +417,61 @@
 // Give the init function the jQuery prototype for later instantiation
     jQuery.fn.init.prototype = jQuery.fn;
 
+// extend jquery中的继承方法
+// 扩展静态方法，扩展到一个函数下面 jquery
+// extend扩展到原型喜爱面，相当于扩展实例方法 jquery.fn
+
+// $.extend()
+// 当只写一个对象自变量的时候，JQ中扩展插件的形式
+// 扩展工具方法
+// $.extend({
+//     aaa:function(){alert(1);},
+//     bbb:function(){alert(2);}
+// })
+
+// $.aaa();
+// $.bbb();
+
+
+// $.fn.extend()
+// 扩展JQ实例方法
+// $.extend({
+//     aaa:function(){alert(3);},
+//     bbb:function(){alert(4);}
+// })
+
+// $().aaa();
+// $().bbb();
+
+// 为什么JQ中可以把静态和实例写在一起？
+// $.extend() -> this -> $ -> this.aaa -> $.aaa
+// $.fn.extend() -> this -> $.fn(prototype) -> this.aaa -> $().aaa()
+
+
+// 当写多个对象自变量的时候，后面的对象都是扩展到第一个对象身上
+// var a={};
+// $.extend(a,{name:'hello'},{age:20});
+// alert(a)//{name:hello,age:20}
+
+
+// 还可以做深拷贝和浅拷贝
+
+// var a={};
+// var b={name:hello};
+// $.extend(a,b);
+// a.name=hi;
+// alert(b.name)//hello 并没有受到a的影响
+
+
+// var a={};
+// var b={name:{age:30}};
+// $.extend(a,b);
+// a.name.age=30;
+// alert(b.name.age)//30 受到a的影响 
+
+// 如果要强制每一层对象嵌套都是深拷贝可以使用
+// $.extend(true,a,b)即可
+
     jQuery.extend = jQuery.fn.extend = function() {
         var options, name, src, copy, copyIsArray, clone,
             target = arguments[0] || {},
@@ -425,19 +480,22 @@
             deep = false;
 
         // Handle a deep copy situation
+        // 如果说target是一个true的话要深拷贝
         if ( typeof target === "boolean" ) {
             deep = target;
             target = arguments[1] || {};
-            // skip the boolean and the target
+            // skip the boolean and the target 目标元素变成第二个元素
             i = 2;
         }
 
         // Handle case when target is a string or something (possible in deep copy)
+        // 看看参数是否正确
         if ( typeof target !== "object" && !jQuery.isFunction(target) ) {
             target = {};
         }
 
         // extend jQuery itself if only one argument is passed
+        // 看看是不是插件的情况，如果只有一个obj，那么target就是this（JQ）
         if ( length === i ) {
             target = this;
             --i;
@@ -445,19 +503,30 @@
 
         for ( ; i < length; i++ ) {
             // Only deal with non-null/undefined values
+            // 进行合并对象，如果写null就无视，没有意义
             if ( (options = arguments[ i ]) != null ) {
                 // Extend the base object
                 for ( name in options ) {
+                    //保存两个对象的同一个key-value
                     src = target[ name ];
                     copy = options[ name ];
 
                     // Prevent never-ending loop
+                    // 防止循环引用
+                    // $.extend(a, {name:a})这样就会一直无限循环
                     if ( target === copy ) {
                         continue;
                     }
 
                     // Recurse if we're merging plain objects or arrays
+                    // JQ使用的是拷贝继承
+                    // a={name:{age:30}}
+                    // b={name:{job:it}}
+                    //$.extend(true,a,b)
+                    //{name:{age:30,job:it}}
                     if ( deep && copy && ( jQuery.isPlainObject(copy) || (copyIsArray = jQuery.isArray(copy)) ) ) {
+                        //这里进行深拷贝，copy有值，copy是一个对象或者copy是一个Array
+
                         if ( copyIsArray ) {
                             copyIsArray = false;
                             clone = src && jQuery.isArray(src) ? src : [];
@@ -467,10 +536,12 @@
                         }
 
                         // Never move original objects, clone them
+                        // 利用递归实现
                         target[ name ] = jQuery.extend( deep, clone, copy );
 
                         // Don't bring in undefined values
                     } else if ( copy !== undefined ) {
+                        //这里进行浅拷贝
                         target[ name ] = copy;
                     }
                 }
@@ -481,11 +552,23 @@
         return target;
     };
 
+    //扩展一些工具方法，这里相当于用上面的函数，扩展到jquery当中
+    //很多实例方法都是调用这里的方法
     jQuery.extend({
         // Unique for each copy of jQuery on the page
+        // 生成唯一的JQ字符串（内部）
         expando: "jQuery" + ( core_version + Math.random() ).replace( /\D/g, "" ),
 
+        // 防止冲突 $可能冲突
+
+        // var haha=$.noConflict()
+        // var $=123;
+        // haha(function(){
+
+        // });
+
         noConflict: function( deep ) {
+            // 放弃$和jquery
             if ( window.$ === jQuery ) {
                 window.$ = _$;
             }
@@ -498,7 +581,15 @@
         },
 
         // Is the DOM ready to be used? Set to true once it occurs.
-        isReady: false,
+        // $()等dom加载完-> DOMContentLoaded
+        // window.onload是等img，flash等等
+        isReady: false, 
+        //$(function(){})--> $(document).ready(function(){})-->$().ready()
+        //-->jQuery.ready.promise().done(fn)创建延迟对象，把函数存起来，然后等到适当的时机执行
+        // if(readyState==completed) $.ready()
+        // else completed回调函数 $.ready()
+
+        // readyList.resolveWith(document,[jQuery])这个时候DOM加载完毕，可以调fn了
 
         // A counter to track how many items to wait for before
         // the ready event fires. See #6781
